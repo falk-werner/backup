@@ -1,4 +1,4 @@
-use clap::{Parser};
+use clap::Parser;
 
 use std::path::PathBuf;
 
@@ -28,10 +28,7 @@ impl Args {
     }
 
     pub fn get_target(&self) -> Option<PathBuf> {
-        match &self.target {
-            Some(value) => Some(PathBuf::from(value.clone())),
-            _ => None,
-        }
+        self.target.as_ref().map(|value| PathBuf::from(value.clone()))
     }
 
     pub fn get_checksum_file(&self) -> PathBuf {

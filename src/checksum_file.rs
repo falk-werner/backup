@@ -28,16 +28,16 @@ impl ChecksumFile {
         let mut files = Vec::<FileInfo>::new();
         let file = File::open(filename)?;
         let lines = BufReader::new(file).lines();
-        for line in lines.flatten() {
+        for line in lines.map_while(Result::ok) {
             if let Some(caps) = re.captures(&line) {
                 let path = String::from(caps.get(1).unwrap().as_str());
                 let sha256 = String::from(caps.get(2).unwrap().as_str());
 
-                files.push(FileInfo { path: path, sha256: sha256})
+                files.push(FileInfo { path, sha256})
             }
         }
 
-        Ok(ChecksumFile { files: files })
+        Ok(ChecksumFile { files })
     }
 
     pub fn add(&mut self, path: &str, sha256: &str) {
@@ -55,7 +55,7 @@ impl ChecksumFile {
         }
 
 
-        if error.file_names.len() == 0 {
+        if error.file_names.is_empty() {
             Ok(())
         } else {
             Err(error)

@@ -81,7 +81,7 @@ fn main() -> ExitCode {
     let args = Args::parse();
     if args.restore {
         let target = args.get_target();
-        if None == target {
+        if target.is_none() {
             eprintln!("error: TARGET missing");
             return ExitCode::FAILURE;
         }
@@ -89,11 +89,11 @@ fn main() -> ExitCode {
         restore(args.get_source(), target.unwrap(), args.get_checksum_file());
     }
     else if args.check {
-        check(args.get_source(), args.get_checksum_file());
+        return check(args.get_source(), args.get_checksum_file());
     }
     else {
         let target = args.get_target();
-        if None == target {
+        if target.is_none() {
             eprintln!("error: TARGET missing");
             return ExitCode::FAILURE;
         }
@@ -101,5 +101,5 @@ fn main() -> ExitCode {
         return backup(args.get_source(), target.unwrap(), args.get_checksum_file());
     }
 
-    return ExitCode::SUCCESS;
+    ExitCode::SUCCESS
 }

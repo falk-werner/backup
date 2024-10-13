@@ -4,7 +4,7 @@ use crate::checksum_file::ChecksumFile;
 
 pub fn check(source: PathBuf, checksum_file: PathBuf) -> ExitCode {
     let checksums = ChecksumFile::from_file(checksum_file);
-    if !checksums.is_ok() {
+    if checksums.is_err() {
         eprintln!("error: failed to load checksum file");
         return ExitCode::FAILURE;
     }
