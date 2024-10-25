@@ -1,4 +1,4 @@
-use clap::Parser;
+use clap::{Parser,ValueEnum};
 
 use std::path::PathBuf;
 
@@ -19,6 +19,16 @@ pub struct Args {
 
     #[arg(short, long, help="Restore files")]
     pub restore: bool,
+
+    #[arg(value_enum, short, long, default_value = "all", help="Policy to handle files")]
+    pub policy: Policy,
+}
+
+#[derive(Debug, Clone, ValueEnum)]
+pub enum Policy {
+    All,
+    OnlyNewer,
+    OnlyMissing,
 }
 
 impl Args {

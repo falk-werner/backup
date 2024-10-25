@@ -35,11 +35,12 @@ pub fn backup(source: PathBuf, target: PathBuf, checksum_file: PathBuf) -> ExitC
     for entry in WalkDir::new(source.clone()).into_iter().flatten() {
         let source_path = entry.path();            
         if source_path.is_file() {
-            println!("process {}", source_path.to_string_lossy());
+            print!("backup {} ... ", source_path.to_string_lossy());
             let relative_path = source_path.strip_prefix(source.clone()).unwrap();
 
             let digest = try_digest(source_path);
             if digest.is_err() {
+                println!("error");
                 eprintln!("error: failed to create checksum");
                 exit_code = ExitCode::FAILURE;
                 continue;
@@ -51,16 +52,20 @@ pub fn backup(source: PathBuf, target: PathBuf, checksum_file: PathBuf) -> ExitC
 
             let parent = target_path.parent().unwrap();
             if create_dir_all(parent).is_err() {
+                println!("error");
                 eprintln!("error: failed to create path {:?}", target_path.parent().unwrap());
                 exit_code = ExitCode::FAILURE;
                 continue;
             }
 
             if copy(source_path, target_path).is_err() {
+                println!("error");
                 eprintln!("error: failed to backup {:?}", source_path);
                 exit_code = ExitCode::FAILURE;
                 continue;
             }
+
+            println!("ok");
         }
     }
     if checksums.save(checksum_file).is_err() {
