@@ -5,6 +5,10 @@ from tkinter import ttk
 from tkinter import filedialog
 from PIL import Image, ImageTk
 import os
+import asyncio
+import time
+
+import tk_async_execute as tae
 
 DEFAULT_TITLE = 'Backup'
 DEFAULT_WIDTH = 640
@@ -17,99 +21,131 @@ def load_image(filename):
     img2.paste(img)
     return ImageTk.PhotoImage(img2)
 
+class MainWindow:
+    def __init__(self):
+        root = tk.Tk()
+        self.root = root
+        root.title(DEFAULT_TITLE)
+        root.iconbitmap(os.path.join('icons','logo.ico'))
+        root.geometry(f'{DEFAULT_WIDTH}x{DEFAULT_HEIGHT}')
+        root.minsize(DEFAULT_WIDTH, DEFAULT_HEIGHT)
+
+        self.file_image = load_image('file.png')
+        self.folder_image = load_image('folder.png')
+        self.remove_image = load_image('remove.png')
+        self.start_image = load_image('start.png')
+        self.exchange_image = load_image('exchange.png')
+        self.update_image = load_image('update.png')
+
+        # Commands
+        commands = tk.Frame(root)
+        add_folder_button = ttk.Button(commands, image=self.folder_image,  text='Add Folder...', compound=tk.LEFT, command=self.add_folder)
+        add_folder_button.grid(row=1, column=1, sticky=tk.E)
+        add_file_button = ttk.Button(commands, image=self.file_image,  text='Add File...', compound=tk.LEFT)
+        add_file_button.grid(row=1, column=2, sticky=tk.E)
+        commands.pack(side=tk.TOP, fill=tk.X, padx=(5,5))
+
+        # files and folders
+        frame = tk.Frame(root)
+        frame.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+
+        listbox = ttk.Treeview(frame, columns=('type', 'path'), selectmode='browse')
+        self.listbox = listbox
+        listbox.heading('#0', text='Name')
+        listbox.heading('type', text='Type')
+        listbox.column('type', width=100)
+        listbox.heading('path', text='Path')
+
+        xscrollbar = tk.Scrollbar(frame, orient=tk.HORIZONTAL)
+        xscrollbar.pack(side = tk.BOTTOM, fill=tk.X)
+        listbox.config(xscrollcommand = xscrollbar.set)
+        xscrollbar.config(command = listbox.xview)
+
+        yscrollbar = tk.Scrollbar(frame, orient=tk.VERTICAL)
+        yscrollbar.pack(side = tk.RIGHT, fill=tk.Y)
+        listbox.config(yscrollcommand = yscrollbar.set)
+        yscrollbar.config(command = listbox.yview)
+
+        listbox.pack(side = tk.LEFT, fill = tk.BOTH, expand=True)
+        listbox.bind('<<TreeviewSelect>>', self.on_selection_changed)
+
+        # selected item
+        frame2 = tk.Frame(root)
+        frame2.columnconfigure(1, weight=0)
+        frame2.columnconfigure(2, weight=1)
+        frame2.columnconfigure(3, weight=0)
+
+        name_label = tk.Label(frame2, text='Name:')
+        name_label.grid(row=1, column=1, sticky=tk.W, padx=(5,5))
+        name_entry = tk.Entry(frame2, text='')
+        name_entry.grid(row=1, column=2, columnspan=2, sticky=tk.EW, padx=(5,5))
+
+        path_label = tk.Label(frame2, text='Path:')
+        path_label.grid(row=2, column=1, sticky=tk.W, padx=(5,5))
+        path_entry = tk.Entry(frame2, text='')
+        path_entry.grid(row=2, column=2, sticky=tk.EW, padx=(5,5))
+        path_select = ttk.Button(frame2, text='Select...', image=self.exchange_image, compound=tk.LEFT)
+        path_select.grid(row=2, column=3, sticky=tk.W, padx=(5,5))
+
+        frame2.pack(side=tk.TOP, fill=tk.BOTH)
+
+        selection_commands = tk.Frame(root)
+        selection_commands.pack(side=tk.TOP, fill=tk.X, padx=(5,5))
+
+        update_button = ttk.Button(selection_commands, text='Update', image=self.update_image, compound=tk.LEFT)
+        update_button.pack(side=tk.LEFT)
+
+        update_button = ttk.Button(selection_commands, text='Remove', image=self.remove_image, compound=tk.LEFT)
+        update_button.pack(side=tk.LEFT)
+
+        # backup
+        sep = ttk.Separator(root, orient=tk.HORIZONTAL)
+        sep.pack(side=tk.TOP, fill=tk.X, pady=10)
+
+        backup_commands = tk.Frame(root)
+        backup_commands.pack(side=tk.TOP, fill=tk.X, padx=(5,5))
+
+        backup_button = ttk.Button(backup_commands, text='Start Backup...', image=self.start_image, compound=tk.LEFT, command=self.start_backup)
+        backup_button.pack(side=tk.LEFT)
+
+        self.progressbar = ttk.Progressbar(root, orient=tk.HORIZONTAL)
+        self.progressbar.pack(side=tk.TOP, fill=tk.X, padx=(5,5), pady=(5,5))
+
+    def add_folder(self):
+        folder = filedialog.askdirectory()
+        if folder:
+            name = os.path.basename(folder)
+            self.listbox.insert('', tk.END, text=name, image=self.folder_image, values=('Folder' , folder))
+        
+    def add_file(self):
+        file = filedialog.askopenfilename()
+        if file:
+            name = os.path.basename(file)
+            self.listbox.insert('', tk.END, text=name, image=self.file_image, values=('File' , file))
+
+    def on_selection_changed(self, e):
+        print(f'selection changed: {self.listbox.focus()}')
+
+    def start_backup(self):
+        print('backup started')
+        self.progressbar.start()
+        tae.async_execute(self.do_backup(), callback=self.finish_backup, wait=False, visible=False)
+
+    async def do_backup(self):
+        time.sleep(5)
+
+    def finish_backup(self):
+        print('backup finished')
+        self.progressbar.stop()
+
+    def run(self):
+        tae.start()
+        self.root.mainloop()
+        tae.stop()
+
 def main():
-    root = tk.Tk()
-    root.title(DEFAULT_TITLE)
-    root.iconbitmap(os.path.join('icons','logo.ico'))
-    root.geometry(f'{DEFAULT_WIDTH}x{DEFAULT_HEIGHT}')
-    root.minsize(DEFAULT_WIDTH, DEFAULT_HEIGHT)
-
-    file_image = load_image('file.png')
-    folder_image = load_image('folder.png')
-    remove_image = load_image('remove.png')
-    start_image = load_image('start.png')
-    exchange_image = load_image('exchange.png')
-    update_image = load_image('update.png')
-
-    # Commands
-    commands = tk.Frame(root)
-    add_folder_button = ttk.Button(commands, image=folder_image,  text='Add Folder...', compound=tk.LEFT)
-    add_folder_button.grid(row=1, column=1, sticky=tk.E)
-    add_file_button = ttk.Button(commands, image=file_image,  text='Add File...', compound=tk.LEFT)
-    add_file_button.grid(row=1, column=2, sticky=tk.E)
-    commands.pack(side=tk.TOP, fill=tk.X, padx=(5,5))
-
-    # files and folders
-    frame = tk.Frame(root)
-    frame.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
-
-    listbox = ttk.Treeview(frame, columns=('type', 'path'), selectmode='browse')
-    listbox.heading('#0', text='Name')
-    listbox.heading('type', text='Type')
-    listbox.column('type', width=100)
-    listbox.heading('path', text='Path')
-
-    xscrollbar = tk.Scrollbar(frame, orient=tk.HORIZONTAL)
-    xscrollbar.pack(side = tk.BOTTOM, fill=tk.X)
-    listbox.config(xscrollcommand = xscrollbar.set)
-    xscrollbar.config(command = listbox.xview)
-
-    yscrollbar = tk.Scrollbar(frame, orient=tk.VERTICAL)
-    yscrollbar.pack(side = tk.RIGHT, fill=tk.Y)
-    listbox.config(yscrollcommand = yscrollbar.set)
-    yscrollbar.config(command = listbox.yview)
-
-    listbox.pack(side = tk.LEFT, fill = tk.BOTH, expand=True)
-    listbox.bind('<<TreeviewSelect>>', lambda e: print(f'selection changed: {listbox.focus()}'))
-
-
-    for i in range(0, 10):
-        listbox.insert('', tk.END, text=f'item #{i}', image=file_image, values=('Datei' , '/some/path'))
-
-    # selected item
-    frame2 = tk.Frame(root)
-    frame2.columnconfigure(1, weight=0)
-    frame2.columnconfigure(2, weight=1)
-    frame2.columnconfigure(3, weight=0)
-
-    name_label = tk.Label(frame2, text='Name:')
-    name_label.grid(row=1, column=1, sticky=tk.W, padx=(5,5))
-    name_entry = tk.Entry(frame2, text='')
-    name_entry.grid(row=1, column=2, columnspan=2, sticky=tk.EW, padx=(5,5))
-
-    path_label = tk.Label(frame2, text='Path:')
-    path_label.grid(row=2, column=1, sticky=tk.W, padx=(5,5))
-    path_entry = tk.Entry(frame2, text='')
-    path_entry.grid(row=2, column=2, sticky=tk.EW, padx=(5,5))
-    path_select = ttk.Button(frame2, text='Select...', image=exchange_image, compound=tk.LEFT)
-    path_select.grid(row=2, column=3, sticky=tk.W, padx=(5,5))
-
-    frame2.pack(side=tk.TOP, fill=tk.BOTH)
-
-    selection_commands = tk.Frame(root)
-    selection_commands.pack(side=tk.TOP, fill=tk.X, padx=(5,5))
-
-    update_button = ttk.Button(selection_commands, text='Update', image=update_image, compound=tk.LEFT)
-    update_button.pack(side=tk.LEFT)
-
-    update_button = ttk.Button(selection_commands, text='Remove', image=remove_image, compound=tk.LEFT)
-    update_button.pack(side=tk.LEFT)
-
-    # backup
-    sep = ttk.Separator(root, orient=tk.HORIZONTAL)
-    sep.pack(side=tk.TOP, fill=tk.X, pady=10)
-
-    backup_commands = tk.Frame(root)
-    backup_commands.pack(side=tk.TOP, fill=tk.X, padx=(5,5))
-
-    backup_button = ttk.Button(backup_commands, text='Start Backup...', image=start_image, compound=tk.LEFT)
-    backup_button.pack(side=tk.LEFT)
-
-    progressbar = ttk.Progressbar(root, orient=tk.HORIZONTAL)
-    progressbar.pack(side=tk.TOP, fill=tk.X, padx=(5,5), pady=(5,5))
-
-    root.mainloop()
-
+    app = MainWindow()
+    app.run()
 
 
 if __name__ == '__main__':
