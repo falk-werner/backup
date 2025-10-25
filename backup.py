@@ -231,6 +231,7 @@ class MainWindow:
             self.path_select['state'] = 'normal'
         else:
             self.name_var.set('')
+            self.path_var.set('')
             self.update_button['state'] = 'disabled'
             self.remove_button['state'] = 'disabled'
             self.path_select['state'] ='disabled'
