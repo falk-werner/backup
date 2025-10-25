@@ -11,6 +11,8 @@ from tkinter import ttk
 from tkinter import filedialog
 from PIL import Image, ImageTk
 import yaml
+import shutil
+import hashlib
 
 import tk_async_execute as tae
 
@@ -257,13 +259,53 @@ class MainWindow:
 
     def start_backup(self):
         """Starts the backup."""
-        print('backup started')
-        self.progressbar.start()
-        tae.async_execute(self.do_backup(), callback=self.finish_backup, wait=False, visible=False)
+        folder = filedialog.askdirectory()
+        if folder:
+            print('backup started')
+            items = []
+            for itemid in self.listbox.get_children():
+                item = self.listbox.item(itemid)
+                name = item['text']
+                itemtype = item['values'][0]
+                path = item['values'][1]
+                items.append({'name': name, 'type': itemtype, 'path': path})
+            self.progressbar.start()
+            tae.async_execute(self.do_backup(items, folder), callback=self.finish_backup, wait=False, visible=False)
 
-    async def do_backup(self):
+    async def do_backup(self, items, folder):
         """Performs the actual backup"""
-        time.sleep(5)
+        # get file list
+        if os.listdir(folder):
+            print(f'error: folder is not empty')
+            return
+
+        files = []
+        for item in items:
+            itemtype = item['type']
+            if itemtype == 'Folder':
+                path = item['path']
+                for dir, dname, fnames in os.walk(item['path']):
+                    targetdir = dir[len(os.path.commonpath([path, dir])):]
+                    if targetdir.startswith('/'):
+                        targetdir = targetdir[1:]
+                    targetdir = os.path.join(item['name'], targetdir)
+                    for fname in fnames:
+                        source = os.path.join(dir, fname)                        
+                        target = os.path.join(targetdir, fname)
+                        files.append({'source': source, 'target': target})
+            elif itemtype == 'File':
+                files.append({'source': item['path'], 'target': item['name']})
+
+        with open(os.path.join(folder, 'checksums.txt'), 'w', newline='\n', encoding='utf-8') as checksum_file:
+            for file in files:
+                source = file['source']
+                rel_target = file['target']
+                target = os.path.join(folder, rel_target)       
+                os.makedirs(os.path.dirname(target), exist_ok=True)
+                shutil.copy2(source, target)
+                with open(target, 'rb') as f:
+                    digest = hashlib.file_digest(f, "sha256")
+                    checksum_file.write(f'SHA256 ({rel_target}) = {digest.hexdigest()}\n')        
 
     def on_closing(self):
         """Saves the project when the application is closed."""
